@@ -6,7 +6,9 @@ import { PropertySearch } from './components/PropertySearch';
 import { PropertyTable } from './components/PropertyTable';
 import { GeocodingPanel } from './components/GeocodingPanel';
 import { MapView } from './components/MapView';
-import { Database, Upload, Search, AlertCircle, CheckCircle, MapPin, Map } from 'lucide-react';
+import { AdminLogin } from './components/AdminLogin';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Database, Upload, Search, AlertCircle, CheckCircle, MapPin, Map, Shield } from 'lucide-react';
 
 interface SearchFilters {
   ownerName: string;
@@ -18,18 +20,26 @@ interface SearchFilters {
   maxAmount: string;
 }
 
-function App() {
+function AppContent() {
+  const { isAdmin, isLoading: authLoading } = useAuth();
   const [properties, setProperties] = useState<UnclaimedProperty[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [activeTab, setActiveTab] = useState<'import' | 'search' | 'geocoding' | 'map'>('import');
+  const [activeTab, setActiveTab] = useState<'import' | 'search' | 'geocoding' | 'map' | 'admin'>('search');
 
   useEffect(() => {
     loadProperties();
   }, []);
+
+  // Redirect non-admin users away from admin-only tabs
+  useEffect(() => {
+    if (!authLoading && !isAdmin && (activeTab === 'import' || activeTab === 'geocoding')) {
+      setActiveTab('admin');
+    }
+  }, [isAdmin, authLoading, activeTab]);
 
   const loadProperties = async (filters?: SearchFilters) => {
     try {
@@ -147,25 +157,47 @@ function App() {
   };
 
   const tabs = [
-    { id: 'import' as const, label: 'Import Data', icon: Upload },
-    { id: 'search' as const, label: 'Search Properties', icon: Search },
-    { id: 'geocoding' as const, label: 'Geocoding', icon: MapPin },
-    { id: 'map' as const, label: 'Map View', icon: Map },
+    { id: 'search' as const, label: 'Search Properties', icon: Search, public: true },
+    { id: 'map' as const, label: 'Map View', icon: Map, public: true },
+    { id: 'import' as const, label: 'Import Data', icon: Upload, public: false },
+    { id: 'geocoding' as const, label: 'Geocoding', icon: MapPin, public: false },
+    { id: 'admin' as const, label: 'Admin', icon: Shield, public: true },
   ];
+
+  const visibleTabs = tabs.filter(tab => tab.public || isAdmin);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <div className="flex items-center space-x-3 mb-4">
-            <Database className="h-8 w-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">
-              California Unclaimed Property Database
-            </h1>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Database className="h-8 w-8 text-blue-600" />
+              <h1 className="text-3xl font-bold text-gray-900">
+                California Unclaimed Property Database
+              </h1>
+            </div>
+            {isAdmin && (
+              <div className="flex items-center space-x-2 text-sm text-green-600">
+                <Shield className="h-4 w-4" />
+                <span>Admin Mode</span>
+              </div>
+            )}
           </div>
           <p className="text-gray-600 max-w-2xl">
-            Import, search, and manage California unclaimed property records. 
-            Upload CSV files, search through property data, geocode addresses, and view properties on an interactive map.
+            Search through California unclaimed property records and view properties on an interactive map.
+            {isAdmin && ' Administrator access enables data import and geocoding features.'}
           </p>
         </div>
 
@@ -192,22 +224,29 @@ function App() {
         <div className="mb-8">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
-              {tabs.map((tab) => {
+              {visibleTabs.map((tab) => {
                 const Icon = tab.icon;
+                const isDisabled = !tab.public && !isAdmin;
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => !isDisabled && setActiveTab(tab.id)}
+                    disabled={isDisabled}
                     className={`
-                      flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm
+                      flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors
                       ${activeTab === tab.id
                         ? 'border-blue-500 text-blue-600'
+                        : isDisabled
+                        ? 'border-transparent text-gray-300 cursor-not-allowed'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }
                     `}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{tab.label}</span>
+                    {!tab.public && !isAdmin && (
+                      <Shield className="h-3 w-3 text-gray-300" />
+                    )}
                   </button>
                 );
               })}
@@ -217,16 +256,6 @@ function App() {
 
         {/* Tab Content */}
         <div className={activeTab === 'map' ? 'h-[calc(100vh-300px)]' : ''}>
-          {activeTab === 'import' && (
-            <div className="mb-8">
-              <FileUpload
-                onFileUpload={handleFileUpload}
-                isLoading={isLoading}
-                error={error}
-              />
-            </div>
-          )}
-
           {activeTab === 'search' && (
             <>
               <div className="mb-8">
@@ -244,15 +273,31 @@ function App() {
             </>
           )}
 
-          {activeTab === 'geocoding' && (
+          {activeTab === 'map' && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-full">
+              <MapView />
+            </div>
+          )}
+
+          {activeTab === 'import' && isAdmin && (
+            <div className="mb-8">
+              <FileUpload
+                onFileUpload={handleFileUpload}
+                isLoading={isLoading}
+                error={error}
+              />
+            </div>
+          )}
+
+          {activeTab === 'geocoding' && isAdmin && (
             <div className="mb-8">
               <GeocodingPanel />
             </div>
           )}
 
-          {activeTab === 'map' && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-full">
-              <MapView />
+          {activeTab === 'admin' && (
+            <div className="mb-8">
+              <AdminLogin />
             </div>
           )}
         </div>
@@ -283,6 +328,14 @@ function App() {
         )}
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
