@@ -5,7 +5,8 @@ import { FileUpload } from './components/FileUpload';
 import { PropertySearch } from './components/PropertySearch';
 import { PropertyTable } from './components/PropertyTable';
 import { GeocodingPanel } from './components/GeocodingPanel';
-import { Database, Upload, Search, AlertCircle, CheckCircle, MapPin } from 'lucide-react';
+import { MapView } from './components/MapView';
+import { Database, Upload, Search, AlertCircle, CheckCircle, MapPin, Map } from 'lucide-react';
 
 interface SearchFilters {
   ownerName: string;
@@ -24,7 +25,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [activeTab, setActiveTab] = useState<'import' | 'search' | 'geocoding'>('import');
+  const [activeTab, setActiveTab] = useState<'import' | 'search' | 'geocoding' | 'map'>('import');
 
   useEffect(() => {
     loadProperties();
@@ -149,6 +150,7 @@ function App() {
     { id: 'import' as const, label: 'Import Data', icon: Upload },
     { id: 'search' as const, label: 'Search Properties', icon: Search },
     { id: 'geocoding' as const, label: 'Geocoding', icon: MapPin },
+    { id: 'map' as const, label: 'Map View', icon: Map },
   ];
 
   return (
@@ -163,7 +165,7 @@ function App() {
           </div>
           <p className="text-gray-600 max-w-2xl">
             Import, search, and manage California unclaimed property records. 
-            Upload CSV files, search through property data, and geocode addresses for mapping.
+            Upload CSV files, search through property data, geocode addresses, and view properties on an interactive map.
           </p>
         </div>
 
@@ -214,43 +216,49 @@ function App() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'import' && (
-          <div className="mb-8">
-            <FileUpload
-              onFileUpload={handleFileUpload}
-              isLoading={isLoading}
-              error={error}
-            />
-          </div>
-        )}
+        <div className={activeTab === 'map' ? 'h-[calc(100vh-300px)]' : ''}>
+          {activeTab === 'import' && (
+            <div className="mb-8">
+              <FileUpload
+                onFileUpload={handleFileUpload}
+                isLoading={isLoading}
+                error={error}
+              />
+            </div>
+          )}
 
-        {activeTab === 'search' && (
-          <div className="mb-8">
-            <PropertySearch
-              onSearch={handleSearch}
-              isLoading={isSearching}
-            />
-          </div>
-        )}
+          {activeTab === 'search' && (
+            <>
+              <div className="mb-8">
+                <PropertySearch
+                  onSearch={handleSearch}
+                  isLoading={isSearching}
+                />
+              </div>
+              <div className="mb-8">
+                <PropertyTable
+                  properties={properties}
+                  isLoading={isSearching}
+                />
+              </div>
+            </>
+          )}
 
-        {activeTab === 'geocoding' && (
-          <div className="mb-8">
-            <GeocodingPanel />
-          </div>
-        )}
+          {activeTab === 'geocoding' && (
+            <div className="mb-8">
+              <GeocodingPanel />
+            </div>
+          )}
 
-        {/* Results Section - Show for search tab */}
-        {activeTab === 'search' && (
-          <div className="mb-8">
-            <PropertyTable
-              properties={properties}
-              isLoading={isSearching}
-            />
-          </div>
-        )}
+          {activeTab === 'map' && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-full">
+              <MapView />
+            </div>
+          )}
+        </div>
 
-        {/* Footer Stats */}
-        {totalRecords > 0 && (
+        {/* Footer Stats - Only show for non-map tabs */}
+        {activeTab !== 'map' && totalRecords > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
               <div>
