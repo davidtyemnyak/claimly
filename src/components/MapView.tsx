@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Icon, LatLngBounds } from 'leaflet';
 import { supabase, UnclaimedProperty } from '../lib/supabase';
-import { Search, MapPin, DollarSign, Building, User, Loader } from 'lucide-react';
+import { Search, MapPin, DollarSign, Building, User, Loader, ZoomIn } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default markers in react-leaflet
@@ -34,6 +34,22 @@ const FitBounds: React.FC<{ properties: PropertyWithCoordinates[] }> = ({ proper
       map.fitBounds(bounds, { padding: [20, 20] });
     }
   }, [map, properties]);
+
+  return null;
+};
+
+// Component to zoom to selected property
+const ZoomToProperty: React.FC<{ property: PropertyWithCoordinates | null }> = ({ property }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (property) {
+      map.setView([property.owner_latitude, property.owner_longitude], 15, {
+        animate: true,
+        duration: 1
+      });
+    }
+  }, [map, property]);
 
   return null;
 };
@@ -92,7 +108,7 @@ export const MapView: React.FC<MapViewProps> = ({ searchQuery = '' }) => {
   };
 
   // Create custom icons based on property type
-  const getPropertyIcon = (propertyType: string) => {
+  const getPropertyIcon = (propertyType: string, isSelected: boolean = false) => {
     const typeCode = propertyType.split(':')[0];
     const colors = {
       'AC01': '#3B82F6', // blue
@@ -116,17 +132,19 @@ export const MapView: React.FC<MapViewProps> = ({ searchQuery = '' }) => {
     };
 
     const color = colors[typeCode as keyof typeof colors] || '#6B7280';
+    const size = isSelected ? [35, 57] : [25, 41];
+    const anchor = isSelected ? [17, 57] : [12, 41];
     
     return new Icon({
       iconUrl: `data:image/svg+xml;base64,${btoa(`
-        <svg width="25" height="41" viewBox="0 0 25 41" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12.5 0C5.6 0 0 5.6 0 12.5C0 19.4 12.5 41 12.5 41S25 19.4 25 12.5C25 5.6 19.4 0 12.5 0Z" fill="${color}"/>
-          <circle cx="12.5" cy="12.5" r="6" fill="white"/>
-          <text x="12.5" y="16" text-anchor="middle" font-family="Arial" font-size="8" fill="${color}">$</text>
+        <svg width="${size[0]}" height="${size[1]}" viewBox="0 0 ${size[0]} ${size[1]}" xmlns="http://www.w3.org/2000/svg">
+          <path d="M${size[0]/2} 0C${size[0]*0.224} 0 0 ${size[0]*0.224} 0 ${size[0]/2}C0 ${size[0]*0.776} ${size[0]/2} ${size[1]} ${size[0]/2} ${size[1]}S${size[0]} ${size[0]*0.776} ${size[0]} ${size[0]/2}C${size[0]} ${size[0]*0.224} ${size[0]*0.776} 0 ${size[0]/2} 0Z" fill="${color}" stroke="${isSelected ? '#ffffff' : 'none'}" stroke-width="${isSelected ? '3' : '0'}"/>
+          <circle cx="${size[0]/2}" cy="${size[0]/2}" r="${size[0]*0.24}" fill="white"/>
+          <text x="${size[0]/2}" y="${size[0]*0.64}" text-anchor="middle" font-family="Arial" font-size="${size[0]*0.32}" fill="${color}">$</text>
         </svg>
       `)}`,
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
+      iconSize: size,
+      iconAnchor: anchor,
       popupAnchor: [1, -34],
     });
   };
@@ -162,6 +180,10 @@ export const MapView: React.FC<MapViewProps> = ({ searchQuery = '' }) => {
     };
     
     return colors[typeCode as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  };
+
+  const handlePropertySelect = (property: PropertyWithCoordinates) => {
+    setSelectedProperty(property);
   };
 
   if (error) {
@@ -234,7 +256,7 @@ export const MapView: React.FC<MapViewProps> = ({ searchQuery = '' }) => {
                   className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
                     selectedProperty?.id === property.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''
                   }`}
-                  onClick={() => setSelectedProperty(property)}
+                  onClick={() => handlePropertySelect(property)}
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between">
@@ -243,6 +265,9 @@ export const MapView: React.FC<MapViewProps> = ({ searchQuery = '' }) => {
                         <span className="font-medium text-gray-900 text-sm">
                           {property.owner_name}
                         </span>
+                        {selectedProperty?.id === property.id && (
+                          <ZoomIn className="h-3 w-3 text-blue-500" />
+                        )}
                       </div>
                       <div className="flex items-center text-green-600 font-medium text-sm">
                         <DollarSign className="h-3 w-3" />
@@ -297,14 +322,15 @@ export const MapView: React.FC<MapViewProps> = ({ searchQuery = '' }) => {
             />
             
             <FitBounds properties={filteredProperties} />
+            <ZoomToProperty property={selectedProperty} />
             
             {filteredProperties.map((property) => (
               <Marker
                 key={property.id}
                 position={[property.owner_latitude, property.owner_longitude]}
-                icon={getPropertyIcon(property.property_type)}
+                icon={getPropertyIcon(property.property_type, selectedProperty?.id === property.id)}
                 eventHandlers={{
-                  click: () => setSelectedProperty(property),
+                  click: () => handlePropertySelect(property),
                 }}
               >
                 <Popup>
