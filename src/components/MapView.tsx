@@ -107,7 +107,7 @@ export const MapView: React.FC<MapViewProps> = ({ searchQuery = '' }) => {
     }
   };
 
-  // Create custom icons based on property type
+  // Create custom icons based on property type and selection state
   const getPropertyIcon = (propertyType: string, isSelected: boolean = false) => {
     const typeCode = propertyType.split(':')[0];
     const colors = {
@@ -324,6 +324,7 @@ export const MapView: React.FC<MapViewProps> = ({ searchQuery = '' }) => {
             <FitBounds properties={filteredProperties} />
             <ZoomToProperty property={selectedProperty} />
             
+            {/* Render all markers only once */}
             {filteredProperties.map((property) => (
               <Marker
                 key={property.id}
