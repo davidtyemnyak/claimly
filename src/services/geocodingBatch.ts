@@ -142,32 +142,39 @@ export class BatchGeocodingService {
     geocoded: number;
     pending: number;
     failed: number;
+    nullCoordinates: number;
   }> {
-    const { data, error } = await supabase
-      .from('unclaimed_properties')
-      .select('geocoding_status')
-      .not('geocoding_status', 'is', null);
-
-    if (error) {
-      throw error;
-    }
-
-    const stats = {
-      total: 0,
-      geocoded: 0,
-      pending: 0,
-      failed: 0
-    };
-
     // Get total count
     const { count: totalCount } = await supabase
       .from('unclaimed_properties')
       .select('*', { count: 'exact', head: true });
 
-    stats.total = totalCount || 0;
+    // Get geocoding status counts
+    const { data: statusData, error: statusError } = await supabase
+      .from('unclaimed_properties')
+      .select('geocoding_status')
+      .not('geocoding_status', 'is', null);
 
-    if (data) {
-      data.forEach(item => {
+    // Get count of properties with NULL coordinates (failed geocoding)
+    const { count: nullCoordinatesCount, error: nullError } = await supabase
+      .from('unclaimed_properties')
+      .select('*', { count: 'exact', head: true })
+      .or('owner_latitude.is.null,owner_longitude.is.null');
+
+    if (statusError || nullError) {
+      throw statusError || nullError;
+    }
+
+    const stats = {
+      total: totalCount || 0,
+      geocoded: 0,
+      pending: 0,
+      failed: 0,
+      nullCoordinates: nullCoordinatesCount || 0
+    };
+
+    if (statusData) {
+      statusData.forEach(item => {
         switch (item.geocoding_status) {
           case 'completed':
             stats.geocoded++;

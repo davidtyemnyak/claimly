@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BatchGeocodingService, GeocodingProgress } from '../services/geocodingBatch';
-import { MapPin, Play, Square, BarChart3, AlertCircle, CheckCircle } from 'lucide-react';
+import { MapPin, Play, Square, BarChart3, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 export const GeocodingPanel: React.FC = () => {
   const [progress, setProgress] = useState<GeocodingProgress>({
@@ -15,7 +15,8 @@ export const GeocodingPanel: React.FC = () => {
     total: 0,
     geocoded: 0,
     pending: 0,
-    failed: 0
+    failed: 0,
+    nullCoordinates: 0
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -74,7 +75,7 @@ export const GeocodingPanel: React.FC = () => {
       )}
 
       {/* Current Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div className="text-center p-4 bg-gray-50 rounded-lg">
           <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
           <div className="text-sm text-gray-500">Total Properties</div>
@@ -90,6 +91,10 @@ export const GeocodingPanel: React.FC = () => {
         <div className="text-center p-4 bg-red-50 rounded-lg">
           <div className="text-2xl font-bold text-red-600">{stats.failed}</div>
           <div className="text-sm text-gray-500">Failed</div>
+        </div>
+        <div className="text-center p-4 bg-red-50 rounded-lg">
+          <div className="text-2xl font-bold text-red-600">{stats.nullCoordinates}</div>
+          <div className="text-sm text-gray-500">No Coordinates</div>
         </div>
       </div>
 
@@ -161,6 +166,10 @@ export const GeocodingPanel: React.FC = () => {
               using OpenStreetMap's Nominatim service. The coordinates will be used to 
               display properties on a map. Processing is rate-limited to respect the 
               service's usage policies.
+            </p>
+            <p className="mt-2">
+              <strong>No Coordinates:</strong> Properties where both owner latitude and longitude are NULL, 
+              indicating failed geocoding attempts or addresses that couldn't be resolved.
             </p>
           </div>
         </div>
